@@ -9,7 +9,6 @@ import com.sky.dto.DishPageQueryDTO;
 import com.sky.entity.Dish;
 import com.sky.entity.DishFlavor;
 import com.sky.exception.DeletionNotAllowedException;
-import com.sky.mapper.CategoryMapper;
 import com.sky.mapper.DishFlavorMapper;
 import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealDishMapper;
@@ -54,10 +53,7 @@ public class DishServiceImpl implements DishService {
 
         List<DishFlavor> flavors = dishDTO.getFlavors();
         if (flavors != null && flavors.size() > 0) {
-            flavors.forEach(dishFlavor -> {
-                dishFlavor.setDishId(id);
-            });
-
+            flavors.forEach(dishFlavor -> dishFlavor.setDishId(id));
             //向口味表插入n条数据
             dishFlavorMapper.insertBatch(flavors);
         }
@@ -104,5 +100,50 @@ public class DishServiceImpl implements DishService {
         }
 
 
+    }
+
+    /**
+     * 根据id查询菜品
+     * @param id
+     * @return
+     */
+    public DishVO getByIdWithFlavor(Long id) {
+        //根据id查询菜品数据
+        Dish dish = dishMapper.getById(id);
+        //根据菜品id查询口味数据
+        List<DishFlavor> flavors = dishFlavorMapper.getByDishId(id);
+
+        //将查询到的数据封装到VO
+        DishVO dishVO = new DishVO();
+        BeanUtils.copyProperties(dish, dishVO);
+        dishVO.setFlavors(flavors);
+
+        return dishVO;
+    }
+
+    /**
+     * 修改菜品
+     * @param dishDTO
+     */
+    public void updateWithFlavor(DishDTO dishDTO) {
+        Dish dish = new Dish();
+        BeanUtils.copyProperties(dishDTO, dish);
+
+        //修改菜品表中基本信息
+        dishMapper.update(dish);
+
+        //清理当前菜品对应口味数据---dish_flavor表的delete操作
+        dishFlavorMapper.deleteByDishId(dishDTO.getId());
+
+        //添加当前提交过来的口味数据---dish_flavor表的insert操作
+        List<DishFlavor> flavors = dishDTO.getFlavors();
+        if (flavors != null && flavors.size() > 0) {
+            flavors.forEach(dishFlavor -> {
+                dishFlavor.setDishId(dishDTO.getId());
+            });
+
+            //向口味表插入n条数据
+            dishFlavorMapper.insertBatch(flavors);
+        }
     }
 }
